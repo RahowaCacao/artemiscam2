@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mission Artémis — Trajectoire</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --space: #020510;
+    --deep: #060d20;
+    --gold: #f0c060;
+    --gold-dim: #a07828;
+    --blue-glow: #4488ff;
+    --teal: #40d0c0;
+    --moon-gray: #c8ccd8;
+    --earth-blue: #3060c0;
+    --text: #e0e8ff;
+    --dim: #7080a0;
+  }
+
+  body {
+    background: var(--space);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  header {
+    width: 100%;
+    text-align: center;
+    padding: 2rem 1rem 1rem;
+    position: relative;
+  }
+
+  header h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(1.4rem, 4vw, 2.6rem);
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    color: var(--gold);
+    text-shadow: 0 0 30px rgba(240,192,96,0.4);
+  }
+
+  header p {
+    font-size: 0.8rem;
+    color: var(--dim);
+    letter-spacing: 0.2em;
+    margin-top: 0.4rem;
+    text-transform: uppercase;
+  }
+
+  .mission-container {
+    width: 100%;
+    max-width: 1300px;
+    padding: 1rem 1.5rem 2rem;
+    display: flex;
+    flex-direction: row;
+    gap: 1.5rem;
+    align-items: flex-start;
+  }
+
+  .crew-panel {
+    width: 200px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .crew-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    color: var(--dim);
+    text-transform: uppercase;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(64,208,192,0.15);
+    margin-bottom: 0.25rem;
+  }
+
+  .crew-member {
+    background: rgba(6,13,32,0.85);
+    border: 1px solid rgba(64,208,192,0.15);
+    border-radius: 4px;
+    padding: 0.7rem 0.9rem;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .crew-member:hover {
+    border-color: rgba(64,208,192,0.5);
+    background: rgba(10,25,55,0.9);
+  }
+
+  .crew-member.active {
+    border-color: var(--gold);
+    background: rgba(20,15,5,0.9);
+  }
+
+  .crew-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    margin-bottom: 4px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .crew-name {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.62rem;
+    color: var(--text);
+    letter-spacing: 0.05em;
+  }
+
+  .crew-role {
+    font-size: 0.58rem;
+    color: var(--dim);
+    letter-spacing: 0.06em;
+  }
+
+  .crew-bubble {
+    margin-top: 0.4rem;
+    background: rgba(240,192,96,0.08);
+    border: 1px solid rgba(240,192,96,0.25);
+    border-radius: 4px;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.72rem;
+    color: var(--gold);
+    line-height: 1.4;
+    font-style: italic;
+    display: none;
+  }
+
+  .crew-bubble.visible { display: block; }
+
+  .main-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .canvas-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/9;
+    border: 1px solid rgba(64,208,192,0.2);
+    border-radius: 4px;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 60%, #0a1530 0%, #020510 70%);
+  }
+
+  canvas#starfield {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+  }
+
+  canvas#trajectory {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+  }
+
+  .ship-cursor {
+    position: absolute;
+    width: 52px;
+    height: 52px;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 10;
+    transition: left 0.05s, top 0.05s;
+  }
+
+  .phase-label {
+    position: absolute;
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(0.55rem, 1.2vw, 0.75rem);
+    color: var(--teal);
+    letter-spacing: 0.08em;
+    background: rgba(2,5,16,0.75);
+    padding: 2px 6px;
+    border-left: 2px solid var(--teal);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  .controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .slider-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    color: var(--dim);
+    width: 120px;
+    flex-shrink: 0;
+    text-transform: uppercase;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    height: 4px;
+    background: linear-gradient(to right, var(--gold) calc(var(--pct) * 1%), #1a2540 calc(var(--pct) * 1%));
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 10px rgba(240,192,96,0.7);
+    cursor: grab;
+  }
+
+  input[type=range]::-webkit-slider-thumb:active { cursor: grabbing; }
+  input[type=range]::-moz-range-thumb {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--gold);
+    border: none;
+    box-shadow: 0 0 10px rgba(240,192,96,0.7);
+    cursor: grab;
+  }
+
+  .time-display {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(0.7rem, 1.5vw, 1rem);
+    color: var(--gold);
+    min-width: 90px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .info-panel {
+    background: rgba(6,13,32,0.9);
+    border: 1px solid rgba(64,208,192,0.2);
+    border-radius: 4px;
+    padding: 1rem 1.25rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.75rem 1.5rem;
+  }
+
+  .info-item { display: flex; flex-direction: column; gap: 2px; }
+  .info-key {
+    font-size: 0.62rem;
+    color: var(--dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  .info-val {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(0.75rem, 1.5vw, 0.95rem);
+    color: var(--teal);
+    font-weight: 400;
+  }
+  .info-val.phase-name { color: var(--gold); font-size: clamp(0.7rem, 1.4vw, 0.9rem); }
+
+  .phase-bar {
+    display: flex;
+    gap: 3px;
+    height: 6px;
+  }
+  .phase-seg {
+    flex: 1;
+    border-radius: 2px;
+    background: rgba(64,208,192,0.15);
+    transition: background 0.3s;
+    cursor: pointer;
+    position: relative;
+  }
+  .phase-seg.active { background: var(--teal); }
+  .phase-seg::after {
+    content: attr(data-label);
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.55rem;
+    color: var(--dim);
+    white-space: nowrap;
+    letter-spacing: 0.05em;
+  }
+
+  .phase-bar-wrap { padding-bottom: 1.2rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ARTEMIS — MISSION TRAJECTORY</h1>
+  <p>NASA · Cislunar Transit Simulation</p>
+</header>
+
+<div class="mission-container">
+
+  <!-- Crew Panel -->
+  <div class="crew-panel">
+    <div class="crew-title">Équipage</div>
+
+    <div class="crew-member" id="crew-thomas" onclick="toggleCrew('thomas')">
+      <div class="crew-avatar" style="background:rgba(64,136,255,0.15);">🧑‍🚀</div>
+      <div class="crew-name">Thomas Pastèque</div>
+      <div class="crew-role">Commandant</div>
+      <div class="crew-bubble" id="bubble-thomas">« J'ai pas le seum hein »</div>
+    </div>
+
+    <div class="crew-member" id="crew-neil" onclick="toggleCrew('neil')">
+      <div class="crew-avatar" style="background:rgba(200,200,180,0.15);">👨‍🚀</div>
+      <div class="crew-name">Neil Armstrong</div>
+      <div class="crew-role">Pilote lunaire</div>
+      <div class="crew-bubble" id="bubble-neil">« Un petit pas pour l'homme… »</div>
+    </div>
+
+    <div class="crew-member" id="crew-elon" onclick="toggleCrew('elon')">
+      <div class="crew-avatar" style="background:rgba(240,192,96,0.12);">🚀</div>
+      <div class="crew-name">Elon Musk</div>
+      <div class="crew-role">Ingénieur propulsion</div>
+      <div class="crew-bubble" id="bubble-elon">« On va sur Mars après »</div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="main-content">
+
+  <div class="canvas-wrap" id="canvasWrap">
+    <canvas id="starfield"></canvas>
+    <canvas id="trajectory"></canvas>
+    <svg class="ship-cursor" id="shipSvg" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Orion capsule + SLS rocket stylized -->
+      <g id="shipGroup">
+        <!-- Main rocket body -->
+        <polygon points="26,4 31,20 21,20" fill="#f0c060" opacity="0.95"/>
+        <rect x="19" y="20" width="14" height="18" rx="2" fill="#c8ccd8"/>
+        <!-- Service module -->
+        <rect x="17" y="38" width="18" height="8" rx="2" fill="#8090b0"/>
+        <!-- Engine nozzle -->
+        <polygon points="20,46 26,52 32,46" fill="#f0c060" opacity="0.8"/>
+        <!-- Wings -->
+        <polygon points="19,22 8,32 14,32 19,28" fill="#8090b0" opacity="0.9"/>
+        <polygon points="33,22 44,32 38,32 33,28" fill="#8090b0" opacity="0.9"/>
+        <!-- Window -->
+        <circle cx="26" cy="30" r="3.5" fill="#4488ff" opacity="0.8"/>
+        <circle cx="26" cy="30" r="2" fill="#88bbff" opacity="0.6"/>
+        <!-- Thruster glow -->
+        <ellipse cx="26" cy="52" rx="5" ry="3" fill="#f0c060" opacity="0.3" id="thrusterGlow"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="controls">
+    <div class="slider-row">
+      <span class="slider-label">PROGRESSION</span>
+      <input type="range" id="missionSlider" min="0" max="1000" value="0" step="1">
+      <span class="time-display" id="timeDisplay">J+0</span>
+    </div>
+    <div class="phase-bar-wrap">
+      <div class="phase-bar" id="phaseBar"></div>
+    </div>
+  </div>
+
+  <div class="info-panel">
+    <div class="info-item">
+      <span class="info-key">Phase</span>
+      <span class="info-val phase-name" id="phaseName">Lancement</span>
+    </div>
+    <div class="info-item">
+      <span class="info-key">Distance Terre</span>
+      <span class="info-val" id="distEarth">0 km</span>
+    </div>
+    <div class="info-item">
+      <span class="info-key">Distance Lune</span>
+      <span class="info-val" id="distMoon">384 400 km</span>
+    </div>
+    <div class="info-item">
+      <span class="info-key">Altitude</span>
+      <span class="info-val" id="altitude">0 km</span>
+    </div>
+    <div class="info-item">
+      <span class="info-key">Vitesse</span>
+      <span class="info-val" id="speed">0 km/s</span>
+    </div>
+    <div class="info-item">
+      <span class="info-key">Statut</span>
+      <span class="info-val" id="status">—</span>
+    </div>
+  </div><!-- /.info-panel -->
+  </div><!-- /.main-content -->
+</div><!-- /.mission-container -->
+
+<script>
+const slider = document.getElementById('missionSlider');
+const timeDisplay = document.getElementById('timeDisplay');
+const phaseNameEl = document.getElementById('phaseName');
+const distEarthEl = document.getElementById('distEarth');
+const distMoonEl = document.getElementById('distMoon');
+const altitudeEl = document.getElementById('altitude');
+const speedEl = document.getElementById('speed');
+const statusEl = document.getElementById('status');
+const shipSvg = document.getElementById('shipSvg');
+const phaseBarEl = document.getElementById('phaseBar');
+const canvasWrap = document.getElementById('canvasWrap');
+const starCanvas = document.getElementById('starfield');
+const trajCanvas = document.getElementById('trajectory');
+
+const PHASES = [
+  { name: 'Lancement', key:'launch', t0:0, t1:0.04, days:'0–1', speed:'7.8', status:'Propulsion SLS', color:'#f0c060' },
+  { name: 'Transit Terre–Lune', key:'transit_out', t0:0.04, t1:0.30, days:'1–4', speed:'1.0', status:'Orbite de transfert', color:'#4488ff' },
+  { name: 'Insertion lunaire', key:'lunar_insert', t0:0.30, t1:0.38, days:'4–5', speed:'1.6', status:'Freinage orbital', color:'#40d0c0' },
+  { name: 'Orbite lunaire', key:'lunar_orbit', t0:0.38, t1:0.62, days:'5–18', speed:'1.6', status:'Opérations lunaires', color:'#c8ccd8' },
+  { name: 'Transit Lune–Terre', key:'transit_back', t0:0.62, t1:0.92, days:'18–24', speed:'0.9', status:'Retour vers la Terre', color:'#4488ff' },
+  { name: 'Rentrée atmosphérique', key:'reentry', t0:0.92, t1:0.97, days:'24–25', speed:'11.0', status:'Friction atmosphérique', color:'#ff6040' },
+  { name: 'Amerrissage', key:'splashdown', t0:0.97, t1:1.0, days:'25', speed:'0.01', status:'Récupération capsule', color:'#3060c0' },
+];
+
+// Build phase bar
+PHASES.forEach((ph, i) => {
+  const seg = document.createElement('div');
+  seg.className = 'phase-seg';
+  seg.dataset.label = ph.name;
+  seg.dataset.idx = i;
+  seg.style.flex = String(ph.t1 - ph.t0);
+  seg.addEventListener('click', () => {
+    const mid = (ph.t0 + ph.t1) / 2;
+    slider.value = Math.round(mid * 1000);
+    update();
+  });
+  phaseBarEl.appendChild(seg);
+});
+
+// Canvas setup
+let W, H;
+function resize() {
+  W = canvasWrap.offsetWidth;
+  H = canvasWrap.offsetHeight;
+  [starCanvas, trajCanvas].forEach(c => { c.width = W; c.height = H; });
+  drawStars();
+  drawTrajectory();
+  update();
+}
+
+// Stars
+let stars = [];
+function drawStars() {
+  const ctx = starCanvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+  if (!stars.length) {
+    for (let i = 0; i < 280; i++) {
+      stars.push({ x: Math.random(), y: Math.random(), r: Math.random() * 1.4 + 0.2, a: Math.random() * 0.8 + 0.2 });
+    }
+  }
+  stars.forEach(s => {
+    ctx.beginPath();
+    ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(200,210,255,${s.a})`;
+    ctx.fill();
+  });
+}
+
+// Key positions (relative to canvas, stable)
+function getPositions() {
+  const ex = 0.12, ey = 0.72;    // Earth center
+  const mx = 0.82, my = 0.28;    // Moon center
+  const er = Math.min(W, H) * 0.085;
+  const mr = Math.min(W, H) * 0.042;
+  return { ex, ey, mx, my, er, mr };
+}
+
+// Trajectory path as series of points (t=0..1)
+function getTrajectoryPoint(t) {
+  const { ex, ey, mx, my, er, mr } = getPositions();
+  const ExW = ex * W, EyH = ey * H;
+  const MxW = mx * W, MyH = my * H;
+
+  if (t < 0.04) {
+    // Launch: leave Earth surface upward
+    const p = t / 0.04;
+    const angle = -Math.PI * 0.55 + p * 0.0;
+    const r = er * (1 + p * 1.8);
+    return { x: ExW + Math.cos(angle) * r, y: EyH + Math.sin(angle) * r };
+  }
+  if (t < 0.30) {
+    // Transit out: curved path Earth → Moon
+    const p = (t - 0.04) / 0.26;
+    const ep = easeCubic(p);
+    const cx = ExW + (MxW - ExW) * 0.45;
+    const cy = EyH + (MyH - EyH) * -0.5;
+    return bezier2({ x: ExW + Math.cos(-Math.PI * 0.55) * er * 2.8, y: EyH + Math.sin(-Math.PI * 0.55) * er * 2.8 },
+                   { x: cx, y: cy },
+                   { x: MxW + Math.cos(Math.PI * 0.7) * mr * 6, y: MyH + Math.sin(Math.PI * 0.7) * mr * 6 }, ep);
+  }
+  if (t < 0.38) {
+    // Lunar approach & insertion
+    const p = (t - 0.30) / 0.08;
+    const startX = MxW + Math.cos(Math.PI * 0.7) * mr * 6;
+    const startY = MyH + Math.sin(Math.PI * 0.7) * mr * 6;
+    const angle0 = Math.PI * 0.7;
+    const angle1 = Math.PI * 1.8;
+    const r0 = mr * 6, r1 = mr * 2.5;
+    const a = lerp(angle0, angle1, p);
+    const r = lerp(r0, r1, p);
+    return { x: MxW + Math.cos(a) * r, y: MyH + Math.sin(a) * r };
+  }
+  if (t < 0.62) {
+    // Lunar orbit (ellipse around moon)
+    const p = (t - 0.38) / 0.24;
+    const a = Math.PI * 1.8 + p * Math.PI * 4.0;
+    const rx = mr * 2.5, ry = mr * 2.0;
+    return { x: MxW + Math.cos(a) * rx, y: MyH + Math.sin(a) * ry };
+  }
+  if (t < 0.92) {
+    // Transit back: Moon → Earth, different arc
+    const p = (t - 0.62) / 0.30;
+    const ep = easeCubic(p);
+    const startAngle = Math.PI * 1.8 + 4.0 * Math.PI;
+    const startX = MxW + Math.cos(startAngle) * mr * 2.5;
+    const startY = MyH + Math.sin(startAngle) * mr * 2.0;
+    const cx = (ExW + MxW) * 0.5;
+    const cy = EyH + (MyH - EyH) * 0.4 + H * 0.08;
+    const arrX = ExW + Math.cos(-Math.PI * 0.3) * er * 3.5;
+    const arrY = EyH + Math.sin(-Math.PI * 0.3) * er * 3.5;
+    return bezier2({ x: startX, y: startY }, { x: cx, y: cy }, { x: arrX, y: arrY }, ep);
+  }
+  if (t < 0.97) {
+    // Reentry
+    const p = (t - 0.92) / 0.05;
+    const arrX = ExW + Math.cos(-Math.PI * 0.3) * er * 3.5;
+    const arrY = EyH + Math.sin(-Math.PI * 0.3) * er * 3.5;
+    return { x: lerp(arrX, ExW + er * 0.5, easeCubic(p)), y: lerp(arrY, EyH - er * 0.3, easeCubic(p)) };
+  }
+  // Splashdown — lands in ocean next to Earth
+  const p = (t - 0.97) / 0.03;
+  return { x: lerp(ExW + er * 0.5, ExW + Math.cos(-Math.PI * 0.25) * er * 1.1, p),
+           y: lerp(EyH - er * 0.3, EyH + Math.sin(-Math.PI * 0.25) * er * 1.1, p) };
+}
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+function easeCubic(t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2; }
+function bezier2(p0, p1, p2, t) {
+  const x = (1-t)*(1-t)*p0.x + 2*(1-t)*t*p1.x + t*t*p2.x;
+  const y = (1-t)*(1-t)*p0.y + 2*(1-t)*t*p1.y + t*t*p2.y;
+  return { x, y };
+}
+
+function drawTrajectory() {
+  const ctx = trajCanvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+  const { ex, ey, mx, my, er, mr } = getPositions();
+
+  // Earth
+  const earthGrad = ctx.createRadialGradient(ex*W, ey*H, er*0.3, ex*W, ey*H, er);
+  earthGrad.addColorStop(0, '#5090e8');
+  earthGrad.addColorStop(0.5, '#2a60c0');
+  earthGrad.addColorStop(1, '#0a1840');
+  ctx.beginPath();
+  ctx.arc(ex*W, ey*H, er, 0, Math.PI*2);
+  ctx.fillStyle = earthGrad;
+  ctx.fill();
+  // Earth continents hint
+  ctx.beginPath();
+  ctx.arc(ex*W - er*0.2, ey*H - er*0.1, er*0.4, 0.2, 2.0);
+  ctx.fillStyle = 'rgba(40,160,80,0.55)';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(ex*W + er*0.25, ey*H + er*0.15, er*0.3, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(40,160,80,0.4)';
+  ctx.fill();
+  // Earth atmosphere glow
+  ctx.beginPath();
+  ctx.arc(ex*W, ey*H, er * 1.12, 0, Math.PI*2);
+  ctx.strokeStyle = 'rgba(80,160,255,0.25)';
+  ctx.lineWidth = er * 0.12;
+  ctx.stroke();
+
+  // Earth label
+  ctx.font = `${Math.round(er * 0.5)}px 'Orbitron', sans-serif`;
+  ctx.fillStyle = 'rgba(200,220,255,0.7)';
+  ctx.textAlign = 'center';
+  ctx.fillText('TERRE', ex*W, (ey*H) + er + er*0.7);
+
+  // Moon
+  const moonGrad = ctx.createRadialGradient(mx*W - mr*0.2, my*H - mr*0.2, mr*0.1, mx*W, my*H, mr);
+  moonGrad.addColorStop(0, '#e0e4f0');
+  moonGrad.addColorStop(0.6, '#b0b4c8');
+  moonGrad.addColorStop(1, '#606478');
+  ctx.beginPath();
+  ctx.arc(mx*W, my*H, mr, 0, Math.PI*2);
+  ctx.fillStyle = moonGrad;
+  ctx.fill();
+  ctx.font = `${Math.round(mr * 0.8)}px 'Orbitron', sans-serif`;
+  ctx.fillStyle = 'rgba(200,220,255,0.7)';
+  ctx.textAlign = 'center';
+  ctx.fillText('LUNE', mx*W, (my*H) + mr + mr*1.0);
+
+  // Full trajectory ghost line
+  ctx.beginPath();
+  for (let i = 0; i <= 500; i++) {
+    const pt = getTrajectoryPoint(i / 500);
+    if (i === 0) ctx.moveTo(pt.x, pt.y);
+    else ctx.lineTo(pt.x, pt.y);
+  }
+  ctx.strokeStyle = 'rgba(64,136,255,0.18)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 6]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawProgress(t, ctx) {
+  ctx.save();
+  ctx.beginPath();
+  const steps = Math.round(t * 500);
+  for (let i = 0; i <= steps; i++) {
+    const pt = getTrajectoryPoint(i / 500);
+    if (i === 0) ctx.moveTo(pt.x, pt.y);
+    else ctx.lineTo(pt.x, pt.y);
+  }
+  const phase = getPhase(t);
+  ctx.strokeStyle = phase ? phase.color : '#f0c060';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function getPhase(t) {
+  return PHASES.find(p => t >= p.t0 && t <= p.t1) || PHASES[PHASES.length - 1];
+}
+
+function formatDist(km) {
+  if (km >= 1000) return Math.round(km).toLocaleString('fr-FR') + ' km';
+  return Math.round(km) + ' km';
+}
+
+function update() {
+  const t = slider.value / 1000;
+  slider.style.setProperty('--pct', slider.value / 10);
+
+  const pt = getTrajectoryPoint(t);
+  const { ex, ey, mx, my, er, mr } = getPositions();
+
+  // Position ship
+  shipSvg.style.left = pt.x + 'px';
+  shipSvg.style.top = pt.y + 'px';
+
+  // Rotate ship toward direction
+  if (t < 0.999) {
+    const pt2 = getTrajectoryPoint(Math.min(t + 0.005, 1));
+    const dx = pt2.x - pt.x, dy = pt2.y - pt.y;
+    const angle = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+    document.getElementById('shipGroup').style.transform = `rotate(${angle}deg)`;
+    document.getElementById('shipGroup').style.transformOrigin = '26px 26px';
+  }
+
+  // Thruster glow on launch/reentry
+  const phase = getPhase(t);
+  const glow = document.getElementById('thrusterGlow');
+  glow.style.opacity = (phase.key === 'launch' || phase.key === 'reentry') ? '0.8' : '0.1';
+
+  // Phase bar highlight
+  phaseBarEl.querySelectorAll('.phase-seg').forEach((seg, i) => {
+    seg.classList.toggle('active', PHASES[i].t0 <= t && t <= PHASES[i].t1);
+  });
+
+  // Time display
+  const days = Math.round(t * 25);
+  timeDisplay.textContent = 'J+' + days;
+
+  // Info panel
+  phaseNameEl.textContent = phase.name;
+  phaseNameEl.style.color = phase.color;
+  speedEl.textContent = phase.speed + ' km/s';
+  statusEl.textContent = phase.status;
+
+  // Distances
+  const earthDist = Math.sqrt(Math.pow((pt.x / W - ex) * 384400, 2) + Math.pow((pt.y / H - ey) * 384400, 2));
+  const moonDist = Math.sqrt(Math.pow((pt.x / W - mx) * 384400, 2) + Math.pow((pt.y / H - my) * 384400, 2));
+  const scaledEarth = earthDist / 2.5;
+  const scaledMoon = moonDist / 2.5;
+  distEarthEl.textContent = formatDist(scaledEarth);
+  distMoonEl.textContent = formatDist(scaledMoon);
+
+  // Altitude (approximate)
+  const erKm = 6371;
+  const alt = Math.max(0, scaledEarth - erKm);
+  altitudeEl.textContent = formatDist(alt);
+
+  // Redraw trajectory canvas
+  const ctx = trajCanvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+  drawTrajectory();
+  drawProgress(t, ctx);
+
+  // Reentry trail glow
+  if (phase.key === 'reentry') {
+    ctx.save();
+    ctx.beginPath();
+    const prev = getTrajectoryPoint(Math.max(0, t - 0.025));
+    ctx.moveTo(prev.x, prev.y);
+    ctx.lineTo(pt.x, pt.y);
+    ctx.strokeStyle = 'rgba(255,100,40,0.7)';
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function toggleCrew(id) {
+  const bubble = document.getElementById('bubble-' + id);
+  const card = document.getElementById('crew-' + id);
+  const isOpen = bubble.classList.contains('visible');
+  document.querySelectorAll('.crew-bubble').forEach(b => b.classList.remove('visible'));
+  document.querySelectorAll('.crew-member').forEach(c => c.classList.remove('active'));
+  if (!isOpen) {
+    bubble.classList.add('visible');
+    card.classList.add('active');
+  }
+}
+
+slider.addEventListener('input', update);
+
+window.addEventListener('resize', resize);
+resize();
+</script>
+</body>
+</html>
